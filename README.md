@@ -8,6 +8,15 @@ rm -rf pub/static/* && bin/magento setup:static-content:deploy en_US <additional
 rm -rf var/di var/generation generated/code && bin/magento setup:di:compile
 ```
 
+## How to update
+
+```
+composer update stock2shop/magento2_module_webhook
+bin/magento setup:upgrade
+rm -rf pub/static/* && bin/magento setup:static-content:deploy en_US <additional locales, e.g.: de_DE>
+rm -rf var/di var/generation generated/code && bin/magento setup:di:compile
+```
+
 ## Backend settings
 
 ![](https://mage2.pro/uploads/default/original/2X/5/5dc6483369d3628688092c098dd2cb42d28d0dce.png)
