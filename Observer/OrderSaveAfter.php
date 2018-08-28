@@ -27,7 +27,7 @@ final class OrderSaveAfter implements ObserverInterface {
 				$o = $ob['order']; /** @var O $o */
 				$om = OM::getInstance(); /** @var OM $om */
 				$cfg = $om->get(Config::class); /** @var Config $cfg */
-				if ($cfg->getValue('sales/stock2shop/enable', SS::SCOPE_STORE, $o->getStore())) {
+				if ($cfg->getValue('stock2shop/order_export/enable', SS::SCOPE_STORE, $o->getStore())) {
 					/** @var string $state */ /** @var string $status */
 					list($state, $status) = [$o->getState(), $o->getStatus()];
 					try {$res = self::post(Payload::get($o), $o->getStore());} /** @var string $res */
@@ -58,9 +58,10 @@ final class OrderSaveAfter implements ObserverInterface {
 	private static function post(array $p, Store $s) {
 		$om = OM::getInstance(); /** @var OM $om */
 		$cfg = $om->get(Config::class); /** @var Config $cfg */
-		$url = $cfg->getValue('sales/stock2shop/url', SS::SCOPE_STORE, $s); /** @var string $url */
+		$url = $cfg->getValue('stock2shop/order_export/url', SS::SCOPE_STORE, $s); /** @var string $url */
 		$z = new Z($url, [
-			'timeout' => 120
+			'accept' => 'application/json'
+			,'timeout' => 120
 			/**
 			 * 2017-07-16
 			 * By default it is «Zend_Http_Client»: @see C::$config
