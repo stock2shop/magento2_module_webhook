@@ -224,7 +224,10 @@ final class Payload {
 				}
 			}
 		}
-		return $r;
+		// 2018-09-05
+		// «The product image URLs are malformed on Windows»:
+		// https://github.com/stock2shop/magento2_module_webhook/issues/3
+		return str_replace('\\', '/', str_replace('\//', '/', $r));
 	}
 
 	/**
