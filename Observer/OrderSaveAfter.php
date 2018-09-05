@@ -76,7 +76,7 @@ final class OrderSaveAfter implements ObserverInterface {
 			 * @see C::$config https://github.com/magento/zf1/blob/1.13.1/library/Zend/Http/Client.php#L126
 			 * But the adapter can be changed in $config, so we create another adapter.
 			 */
-			$r->setAdapter((new \Zend_Http_Client_Adapter_Socket)->setStreamContext([
+			$z->setAdapter((new \Zend_Http_Client_Adapter_Socket)->setStreamContext([
 				'ssl' => ['allow_self_signed' => true, 'verify_peer' => false]
 			]));
 		}
