@@ -2,19 +2,23 @@ The module sends a new order's data to a specified URL in a JSON format.
 
 ## How to install
 ```
+bin/magento maintenance:enable
 composer require stock2shop/magento2_module_webhook:*
 bin/magento setup:upgrade
 rm -rf pub/static/* && bin/magento setup:static-content:deploy en_US <additional locales, e.g.: de_DE>
 rm -rf var/di var/generation generated/code && bin/magento setup:di:compile
+bin/magento maintenance:disable
 ```
 
 ## How to update
 
 ```
+bin/magento maintenance:enable
 composer update stock2shop/magento2_module_webhook
 bin/magento setup:upgrade
 rm -rf pub/static/* && bin/magento setup:static-content:deploy en_US <additional locales, e.g.: de_DE>
 rm -rf var/di var/generation generated/code && bin/magento setup:di:compile
+bin/magento maintenance:disable
 ```
 
 ## Backend settings
