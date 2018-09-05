@@ -32,8 +32,12 @@ final class Payload {
 	 * @return array(string => mixed)
 	 */
 	private function items() {return self::oqi_leafs($this->_o, function(OI $i) {return [
-		'name' => $i->getName()
+		// 2018-09-05
+		// «Add product IDs to line items»
+		// https://github.com/stock2shop/magento2_module_webhook/issues/5
+		'id' => $i->getProductId()
 		,'image' => self::product_image_url($i->getProduct())
+		,'name' => $i->getName()
 		,'price' => self::oqi_price($i)
 		,'price_with_discount' => self::oqi_price($i, false, true)
 		,'price_with_discount_and_tax' => self::oqi_price($i, true, true)
