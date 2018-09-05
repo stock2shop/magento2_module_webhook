@@ -39,6 +39,8 @@ final class Payload {
 		,'price_with_discount_and_tax' => self::oqi_price($i, true, true)
 		,'price_with_tax' => self::oqi_price($i, true)
 		,'qty' => intval($i->getQtyOrdered())
+		// 2018-09-05 «Add SKUs to line items»: https://github.com/stock2shop/magento2_module_webhook/issues/2
+		,'sku' => $i->getSku()
 		,'tax_rate' => self::oqi_tax_rate($i)
 		,'url' => self::oqi_url($i)
 	];});}
