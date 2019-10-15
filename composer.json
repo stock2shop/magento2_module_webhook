@@ -6,9 +6,9 @@
 	,"homepage": "https://github.com/stock2shop/magento2_module_webhook"
 	,"license": "MIT"
 	,"authors": [{
-		"name": "Dmitry Fedyuk"
-		,"email": "admin@mage2.pro"
-		,"homepage": "https://www.upwork.com/fl/mage2pro"
+		"name": "Stock2Shop"
+		,"email": "info@stock2shop.com"
+		,"homepage": "https://www.stock2shop.com"
 		,"role": "Developer"
 	}]
 	,"autoload": {"files": ["registration.php"], "psr-4": {"Stock2Shop\\OrderExport\\": ""}}
