@@ -81,7 +81,8 @@ final class OrderSaveAfter implements ObserverInterface {
 			]));
 		}
 		$z->setMethod(Z::POST);
-		$z->setRawData(json_encode($p, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+		// TODO - fails with canceled orders for some reason
+		$z->setRawData(json_encode($p, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
 		return $z->request()->getBody();
 	}
 }
