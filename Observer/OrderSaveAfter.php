@@ -30,13 +30,19 @@ final class OrderSaveAfter implements ObserverInterface {
 				if ($cfg->getValue('stock2shop/order_export/enable', SS::SCOPE_STORE, $o->getStore())) {
 					/** @var string $state */ /** @var string $status */
 					list($state, $status) = [$o->getState(), $o->getStatus()];
-					try {$res = self::post(Payload::get($o), $o->getStore());} /** @var string $res */
-					catch (\Exception $e) {$res = $e->getMessage();}
+					try {
+						$payload = Payload::get($o);
+						$res = self::post($payload, $o->getStore());
+					} /** @var string $res */
+					catch (\Exception $e) {
+						$res = $e->getMessage();
+					}
 					$h = $o->addStatusHistoryComment(__(
 						implode('<br>', [
 							"The Stock2Shop's webhook is notified."
 							,"The order's status: «<b>{$status}</b>»."
 							,"The order's state: «<b>{$state}</b>»."
+							,sprintf("The serialized payload: %s", serialize($payload))
 							,sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000))
 						])
 					)); /** @var History|IHistory $h */
@@ -81,7 +87,11 @@ final class OrderSaveAfter implements ObserverInterface {
 			]));
 		}
 		$z->setMethod(Z::POST);
-		$z->setRawData(json_encode($p, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
+		$json = json_encode($p, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+		if (json_last_error() !== JSON_ERROR_NONE) {
+			throw new \Exception("JSON encoding failed: " . json_last_error_msg());
+		}
+		$z->setRawData($json);
 		return $z->request()->getBody();
 	}
 }
