@@ -91,12 +91,8 @@ final class OrderSaveAfter implements ObserverInterface {
 
 		// Check for errors
 		if (curl_errno($ch)) {
-			// Handle the error here, e.g., log or throw an exception
-			// For simplicity, we'll just return the error message
-			$result = 'cURL Error: ' . curl_error($ch);
+			throw new \Exception("Curl request failed: " . curl_error($ch));
 		}
-
-		// Close the cURL session
 		curl_close($ch);
 
 		return $result;
