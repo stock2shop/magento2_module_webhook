@@ -30,21 +30,26 @@ final class OrderSaveAfter implements ObserverInterface {
 				if ($cfg->getValue('stock2shop/order_export/enable', SS::SCOPE_STORE, $o->getStore())) {
 					/** @var string $state */ /** @var string $status */
 					list($state, $status) = [$o->getState(), $o->getStatus()];
+					$error_occurred = false;
 					try {
 						$payload = Payload::get($o);
 						$res = self::post($payload, $o->getStore());
 					} /** @var string $res */
 					catch (\Exception $e) {
 						$res = $e->getMessage();
+						$error_occurred = true;
+					}
+					$comment = [
+						"The Stock2Shop's webhook is notified."
+						,"The order's status: «<b>{$status}</b>»."
+						,"The order's state: «<b>{$state}</b>»."
+						,sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000))
+					];
+					if ($error_occurred) {
+						$comment[] = sprintf("The serialized payload: %s", serialize($payload));
 					}
 					$h = $o->addStatusHistoryComment(__(
-						implode('<br>', [
-							"The Stock2Shop's webhook is notified."
-							,"The order's status: «<b>{$status}</b>»."
-							,"The order's state: «<b>{$state}</b>»."
-							,sprintf("The serialized payload: %s", serialize($payload))
-							,sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000))
-						])
+						implode('<br>', $comment)
 					)); /** @var History|IHistory $h */
 					$h->setIsVisibleOnFront(false);
 					$h->setIsCustomerNotified(false);

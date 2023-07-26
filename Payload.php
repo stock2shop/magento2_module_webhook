@@ -18,6 +18,12 @@ use Magento\Sales\Model\Order\Address as OA;
 use Magento\Sales\Model\Order\Item as OI;
 // 2018-08-11 Dmitry Fedyuk https://www.upwork.com/fl/mage2pro
 final class Payload {
+	const UNWANTED_KEYS = [
+		'password_hash',
+		'rp_token',
+		'rp_token_created_at',
+		'protect_code',
+	];
 	/**
 	 * 2018-08-11
 	 * @used-by get()
@@ -108,9 +114,13 @@ final class Payload {
 	 * @param mixed[] $a
 	 * @return mixed[]
 	 */
-	private static function clean($a) {return array_filter($a, function($v) {return !in_array(
-		$v, ['', null, [], false], true
-	);});}
+	private static function clean($a)
+	{
+		return array_filter($a, function ($v, $k) {
+			return !in_array($v, ['', null, [], false], true) &&
+					!in_array($k, self::UNWANTED_KEYS);
+		}, ARRAY_FILTER_USE_BOTH);
+	}
 
 	/**
 	 * 2016-09-07
@@ -243,11 +253,14 @@ final class Payload {
 	 * @param _DO|mixed[] $v
 	 * @return mixed
 	 */
-	private static function remove_objects($v) {return self::clean(array_filter(
-		is_array($v) ? $v : $v->getData(), function($v) {return
-			is_object($v) ? false : (!is_array($v) ? true : self::remove_objects($v))
-		;}
-	));}
+	private static function remove_objects($v)
+	{
+		return self::clean(array_filter(
+			is_array($v) ? $v : $v->getData(), function ($v) {
+			return is_object($v) ? false : (!is_array($v) ? true : self::remove_objects($v));
+		}
+		));
+	}
 
 	/**
 	 * 2017-09-30
