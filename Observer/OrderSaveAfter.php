@@ -66,37 +66,35 @@ final class OrderSaveAfter implements ObserverInterface {
 	 * @param Store $s
 	 * @return string
 	 */
-	private static function post(array $p, Store $s) {
+	private static function post(array $payload, Store $s) {
 		$om = OM::getInstance(); /** @var OM $om */
 		$cfg = $om->get(Config::class); /** @var Config $cfg */
 		$url = $cfg->getValue('stock2shop/order_export/url', SS::SCOPE_STORE, $s); /** @var string $url */
-		$z = new Z($url, [
-			'accept' => 'application/json'
-			,'timeout' => 120
-			/**
-			 * 2017-07-16
-			 * By default it is «Zend_Http_Client»: @see C::$config
-			 * https://github.com/magento/zf1/blob/1.13.1/library/Zend/Http/Client.php#L126
-			 */
-			,'useragent' => 'Mage2.PRO'
-		]); /** @var Z $r */
-		if (0 === strpos(strtolower($url), 'https') || false !== strpos($url, 'localhost')) {
-			/**
-			 * 2017-07-16
-			 * @see \Zend_Http_Client_Adapter_Socket is the default adapter for Zend_Http_Client:
-			 * @see C::$config https://github.com/magento/zf1/blob/1.13.1/library/Zend/Http/Client.php#L126
-			 * But the adapter can be changed in $config, so we create another adapter.
-			 */
-			$z->setAdapter((new \Zend_Http_Client_Adapter_Socket)->setStreamContext([
-				'ssl' => ['allow_self_signed' => true, 'verify_peer' => false]
-			]));
-		}
-		$z->setMethod(Z::POST);
-		$json = json_encode($p, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+
+		$json = json_encode($payload, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
 		if (json_last_error() !== JSON_ERROR_NONE) {
 			throw new \Exception("JSON encoding failed: " . json_last_error_msg());
 		}
-		$z->setRawData($json);
-		return $z->request()->getBody();
+
+		// Set up cURL
+		$ch = curl_init($url);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Content-Type: application/json',
+			'Content-Length: ' . strlen($json)
+		]);
+
+		// Execute the cURL request
+		$result = curl_exec($ch);
+
+		// Check for errors
+		if (curl_errno($ch)) {
+			throw new \Exception("Curl request failed: " . curl_error($ch));
+		}
+		curl_close($ch);
+
+		return $result;
 	}
 }
