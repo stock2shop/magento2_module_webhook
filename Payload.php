@@ -100,13 +100,13 @@ final class Payload {
 		$om = OM::getInstance(); /** @var OM $om */
 		$cr = $om->get(CustomerRegistry::class); /** @var CustomerRegistry $cr */
 		$i = new self; $i->_o = $o; return [
-			'billing_address' => $i->address($o->getBillingAddress())
-			,'customer' => !($cid = $o->getCustomerId()) ? [] : self::remove_objects($cr->retrieve($cid))
-			,'line_items' => $i->items()
-			,'payment' => $i->payment()
-			,'shipping_address' => $i->address($o->getShippingAddress())
-			,'visitor' => $i->visitor()
-		] + self::remove_objects($o);
+				'billing_address' => $i->address($o->getBillingAddress())
+				,'customer' => !($cid = $o->getCustomerId()) ? [] : self::remove_objects($cr->retrieve($cid))
+				,'line_items' => $i->items()
+				,'payment' => $i->payment()
+				,'shipping_address' => $i->address($o->getShippingAddress())
+				,'visitor' => $i->visitor()
+			] + self::remove_objects($o);
 	}
 
 	/**
@@ -118,7 +118,7 @@ final class Payload {
 	{
 		return array_filter($a, function ($v, $k) {
 			return !in_array($v, ['', null, [], false], true) &&
-					!in_array($k, self::UNWANTED_KEYS);
+				!in_array($k, self::UNWANTED_KEYS);
 		}, ARRAY_FILTER_USE_BOTH);
 	}
 
@@ -152,7 +152,7 @@ final class Payload {
 	 */
 	private static function oqi_price($i, $withTax = false, $withDiscount = false) {
 		$r = floatval($withTax ? $i->getPriceInclTax() : $i->getPrice()) ?: (
-			$i->getParentItem() ? self::oqi_price($i->getParentItem(), $withTax) : .0
+		$i->getParentItem() ? self::oqi_price($i->getParentItem(), $withTax) : .0
 		); /** @var float $r */
 		/**
 		 * 2017-09-30
@@ -211,8 +211,8 @@ final class Payload {
 		if ($type) {
 			$r = $h
 				->init($p, $type, ['type' => $type] + $attrs + $vc->getViewConfig()->getMediaAttributes(
-					'Magento_Catalog', ImageH::MEDIA_TYPE_CONFIG_NODE, $type
-				))
+						'Magento_Catalog', ImageH::MEDIA_TYPE_CONFIG_NODE, $type
+					))
 				->getUrl()
 			;
 		}
@@ -274,5 +274,5 @@ final class Payload {
 	 */
 	private static function tax_rate($withTax, $withoutTax) {return !$withoutTax ? 0 :
 		100 * ($withTax - $withoutTax) / $withoutTax
-	;}
+		;}
 }
