@@ -16,6 +16,17 @@ final class OrderSaveAfter implements ObserverInterface {
 	private static $encoding_error_msg = null;
 	private static $curl_error_msg = null;
 
+	protected static $logger;
+
+	/**
+	 * @param \Psr\Log\LoggerInterface $logger
+	 */
+	public function __construct(
+		\Psr\Log\LoggerInterface $logger
+	) {
+		self::$logger = $logger;
+	}
+
 	/**
 	 * 2018-08-11
 	 * @override
@@ -37,18 +48,12 @@ final class OrderSaveAfter implements ObserverInterface {
 					$encoded_str = self::encode($payload);
 					$order_id = $o->getIncrementId();
 					$payload_str = !empty(self::$encoding_error_msg)
-						? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website."}'
+						? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website to see the details."}'
 						: $encoded_str;
 					$res = self::post($payload_str, $o->getStore());
 
 					// Set errors as webhook response, if any
-					$errors = [];
-					if (!empty(self::$encoding_error_msg)) {
-						$errors[] = 'JSON encoding error: ' . self::$encoding_error_msg;
-					}
-					if (!empty(self::$curl_error_msg)) {
-						$errors[] = 'Curl error: ' . self::$curl_error_msg;
-					}
+					$errors = $this->getErrors();
 					$res = !empty($errors) ? implode(', ', $errors) : $res;
 
 					$comment = [
@@ -72,11 +77,18 @@ final class OrderSaveAfter implements ObserverInterface {
 		}
 	}
 
+	/**
+	 * @param array $payload
+	 * @return false|string
+	 */
 	private static function encode(array $payload)
 	{
 		$response = json_encode($payload, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+
+		// Log errors
 		if (json_last_error() !== JSON_ERROR_NONE) {
-			self::$encoding_error_msg = json_last_error_msg();
+			self::$encoding_error_msg = 'Stock2Shop Webhook JSON encoding error: ' . json_last_error_msg();
+			self::$logger->error(self::$encoding_error_msg);
 		}
 		return $response;
 	}
@@ -105,13 +117,26 @@ final class OrderSaveAfter implements ObserverInterface {
 		// Execute the cURL request
 		$result = curl_exec($ch);
 
-		// Check for errors
+		// Log errors
 		if (curl_errno($ch)) {
-			self::$curl_error_msg = curl_error($ch);
+			self::$curl_error_msg = 'Stock2Shop Webhook curl error: ' . curl_error($ch);
+			self::$logger->error(self::$curl_error_msg);
 		}
 
 		curl_close($ch);
 
 		return $result;
+	}
+
+	private static function getErrors()
+	{
+		$errors = [];
+		if (!empty(self::$encoding_error_msg)) {
+			$errors[] = self::$encoding_error_msg;
+		}
+		if (!empty(self::$curl_error_msg)) {
+			$errors[] = self::$curl_error_msg;
+		}
+		return $errors;
 	}
 }
