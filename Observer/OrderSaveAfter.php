@@ -13,8 +13,9 @@ use Stock2Shop\OrderExport\Payload;
 // 2018-08-11 Dmitry Fedyuk https://www.upwork.com/fl/mage2pro
 final class OrderSaveAfter implements ObserverInterface {
 
-	private static $encoding_error_msg = null;
-	private static $curl_error_msg = null;
+	private static $encoding_error_msg;
+	private static $curl_error_msg;
+	private static $exception_msg;
 
 	protected static $logger;
 
@@ -35,6 +36,10 @@ final class OrderSaveAfter implements ObserverInterface {
 	 */
 	function execute(Observer $ob) {
 		static $in; /** @var bool $in */
+		self::$curl_error_msg = null;
+		self::$encoding_error_msg = null;
+		self::$exception_msg = null;
+
 		if (!$in) {
 			$in = true;
 			try {
@@ -44,13 +49,18 @@ final class OrderSaveAfter implements ObserverInterface {
 				if ($cfg->getValue('stock2shop/order_export/enable', SS::SCOPE_STORE, $o->getStore())) {
 					/** @var string $state */ /** @var string $status */
 					list($state, $status) = [$o->getState(), $o->getStatus()];
-					$payload = Payload::get($o);
-					$encoded_str = self::encode($payload);
-					$order_id = $o->getIncrementId();
-					$payload_str = !empty(self::$encoding_error_msg)
-						? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website to see the details."}'
-						: $encoded_str;
-					$res = self::post($payload_str, $o->getStore());
+					try {
+						$payload = Payload::get($o);
+						$encoded_str = self::encode($payload);
+						$order_id = $o->getIncrementId();
+						$payload_str = !empty(self::$encoding_error_msg)
+							? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website to see the details."}'
+							: $encoded_str;
+						$res = self::post($payload_str, $o->getStore());
+					} catch (\Exception $e) {
+						self::$exception_msg = 'Stock2Shop Webhook exception: ' . $e->getMessage();
+						self::$logger->error(self::$exception_msg);
+					}
 
 					// Set errors as webhook response, if any
 					$errors = $this->getErrors();
@@ -136,6 +146,9 @@ final class OrderSaveAfter implements ObserverInterface {
 		}
 		if (!empty(self::$curl_error_msg)) {
 			$errors[] = self::$curl_error_msg;
+		}
+		if (!empty(self::$exception_msg)) {
+			$errors[] = self::$exception_msg;
 		}
 		return $errors;
 	}
