@@ -10,9 +10,24 @@ use Magento\Sales\Model\Order\Status\History;
 use Magento\Store\Model\ScopeInterface as SS;
 use Magento\Store\Model\Store;
 use Stock2Shop\OrderExport\Payload;
-use Zend_Http_Client as Z;
 // 2018-08-11 Dmitry Fedyuk https://www.upwork.com/fl/mage2pro
 final class OrderSaveAfter implements ObserverInterface {
+
+	private $encoding_error_msg;
+	private $curl_error_msg;
+	private $exception_msg;
+
+	private $logger;
+
+	/**
+	 * @param \Psr\Log\LoggerInterface $logger
+	 */
+	public function __construct(
+		\Psr\Log\LoggerInterface $logger
+	) {
+		$this->logger = $logger;
+	}
+
 	/**
 	 * 2018-08-11
 	 * @override
@@ -21,6 +36,10 @@ final class OrderSaveAfter implements ObserverInterface {
 	 */
 	function execute(Observer $ob) {
 		static $in; /** @var bool $in */
+		$this->curl_error_msg = null;
+		$this->encoding_error_msg = null;
+		$this->exception_msg = null;
+
 		if (!$in) {
 			$in = true;
 			try {
@@ -30,15 +49,34 @@ final class OrderSaveAfter implements ObserverInterface {
 				if ($cfg->getValue('stock2shop/order_export/enable', SS::SCOPE_STORE, $o->getStore())) {
 					/** @var string $state */ /** @var string $status */
 					list($state, $status) = [$o->getState(), $o->getStatus()];
-					try {$res = self::post(Payload::get($o), $o->getStore());} /** @var string $res */
-					catch (\Exception $e) {$res = $e->getMessage();}
+					try {
+						$payload = Payload::get($o);
+						$encoded_str = $this->encode($payload);
+						$order_id = $o->getIncrementId();
+						$payload_str = !empty($this->encoding_error_msg)
+							? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website to see the details."}'
+							: $encoded_str;
+						$res = $this->post($payload_str, $o->getStore());
+					} catch (\Exception $e) {
+						$this->exception_msg = 'Stock2Shop Webhook exception: ' . $e->getMessage();
+						$this->logger->error($this->exception_msg);
+					}
+
+					// Set errors as webhook response, if any
+					$errors = $this->getErrors();
+					$res = !empty($errors) ? implode(', ', $errors) : $res;
+
+					$comment = [
+						"The Stock2Shop's webhook is notified."
+						,"The order's status: «<b>{$status}</b>»."
+						,"The order's state: «<b>{$state}</b>»."
+						,sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000))
+					];
+					if (!empty($errors)) {
+						$comment[] = sprintf("The serialized payload: %s", htmlspecialchars(serialize($payload)));
+					}
 					$h = $o->addStatusHistoryComment(__(
-						implode('<br>', [
-							"The Stock2Shop's webhook is notified."
-							,"The order's status: «<b>{$status}</b>»."
-							,"The order's state: «<b>{$state}</b>»."
-							,sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000))
-						])
+						implode('<br>', $comment)
 					)); /** @var History|IHistory $h */
 					$h->setIsVisibleOnFront(false);
 					$h->setIsCustomerNotified(false);
@@ -50,38 +88,68 @@ final class OrderSaveAfter implements ObserverInterface {
 	}
 
 	/**
+	 * @param array $payload
+	 * @return false|string
+	 */
+	private function encode(array $payload)
+	{
+		$response = json_encode($payload, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+
+		// Log errors
+		if (json_last_error() !== JSON_ERROR_NONE) {
+			$this->encoding_error_msg = 'Stock2Shop Webhook JSON encoding error: ' . json_last_error_msg();
+			$this->logger->error($this->encoding_error_msg);
+		}
+		return $response;
+	}
+
+	/**
 	 * 2018-08-15
-	 * @param array(string => mixed) $p
+	 * @param string $payload
 	 * @param Store $s
 	 * @return string
 	 */
-	private static function post(array $p, Store $s) {
+	private function post(string $payload, Store $s) {
 		$om = OM::getInstance(); /** @var OM $om */
 		$cfg = $om->get(Config::class); /** @var Config $cfg */
 		$url = $cfg->getValue('stock2shop/order_export/url', SS::SCOPE_STORE, $s); /** @var string $url */
-		$z = new Z($url, [
-			'accept' => 'application/json'
-			,'timeout' => 120
-			/**
-			 * 2017-07-16
-			 * By default it is «Zend_Http_Client»: @see C::$config
-			 * https://github.com/magento/zf1/blob/1.13.1/library/Zend/Http/Client.php#L126
-			 */
-			,'useragent' => 'Mage2.PRO'
-		]); /** @var Z $r */
-		if (0 === strpos(strtolower($url), 'https') || false !== strpos($url, 'localhost')) {
-			/**
-			 * 2017-07-16
-			 * @see \Zend_Http_Client_Adapter_Socket is the default adapter for Zend_Http_Client:
-			 * @see C::$config https://github.com/magento/zf1/blob/1.13.1/library/Zend/Http/Client.php#L126
-			 * But the adapter can be changed in $config, so we create another adapter.
-			 */
-			$z->setAdapter((new \Zend_Http_Client_Adapter_Socket)->setStreamContext([
-				'ssl' => ['allow_self_signed' => true, 'verify_peer' => false]
-			]));
+
+		// Set up cURL
+		$ch = curl_init($url);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'Content-Type: application/json',
+			'Content-Length: ' . strlen($payload)
+		]);
+
+		// Execute the cURL request
+		$result = curl_exec($ch);
+
+		// Log errors
+		if (curl_errno($ch)) {
+			$this->curl_error_msg = 'Stock2Shop Webhook curl error: ' . curl_error($ch);
+			$this->logger->error($this->curl_error_msg);
 		}
-		$z->setMethod(Z::POST);
-		$z->setRawData(json_encode($p, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));
-		return $z->request()->getBody();
+
+		curl_close($ch);
+
+		return $result;
+	}
+
+	private function getErrors()
+	{
+		$errors = [];
+		if (!empty($this->encoding_error_msg)) {
+			$errors[] = $this->encoding_error_msg;
+		}
+		if (!empty($this->curl_error_msg)) {
+			$errors[] = $this->curl_error_msg;
+		}
+		if (!empty($this->exception_msg)) {
+			$errors[] = $this->exception_msg;
+		}
+		return $errors;
 	}
 }

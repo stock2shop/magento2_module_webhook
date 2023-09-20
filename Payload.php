@@ -18,6 +18,12 @@ use Magento\Sales\Model\Order\Address as OA;
 use Magento\Sales\Model\Order\Item as OI;
 // 2018-08-11 Dmitry Fedyuk https://www.upwork.com/fl/mage2pro
 final class Payload {
+	const UNWANTED_KEYS = [
+		'password_hash',
+		'rp_token',
+		'rp_token_created_at',
+		'protect_code',
+	];
 	/**
 	 * 2018-08-11
 	 * @used-by get()
@@ -94,13 +100,13 @@ final class Payload {
 		$om = OM::getInstance(); /** @var OM $om */
 		$cr = $om->get(CustomerRegistry::class); /** @var CustomerRegistry $cr */
 		$i = new self; $i->_o = $o; return [
-			'billing_address' => $i->address($o->getBillingAddress())
-			,'customer' => !($cid = $o->getCustomerId()) ? [] : self::remove_objects($cr->retrieve($cid))
-			,'line_items' => $i->items()
-			,'payment' => $i->payment()
-			,'shipping_address' => $i->address($o->getShippingAddress())
-			,'visitor' => $i->visitor()
-		] + self::remove_objects($o);
+				'billing_address' => $i->address($o->getBillingAddress())
+				,'customer' => !($cid = $o->getCustomerId()) ? [] : self::remove_objects($cr->retrieve($cid))
+				,'line_items' => $i->items()
+				,'payment' => $i->payment()
+				,'shipping_address' => $i->address($o->getShippingAddress())
+				,'visitor' => $i->visitor()
+			] + self::remove_objects($o);
 	}
 
 	/**
@@ -108,9 +114,13 @@ final class Payload {
 	 * @param mixed[] $a
 	 * @return mixed[]
 	 */
-	private static function clean($a) {return array_filter($a, function($v) {return !in_array(
-		$v, ['', null, [], false], true
-	);});}
+	private static function clean($a)
+	{
+		return array_filter($a, function ($v, $k) {
+			return !in_array($v, ['', null, [], false], true) &&
+				!in_array($k, self::UNWANTED_KEYS);
+		}, ARRAY_FILTER_USE_BOTH);
+	}
 
 	/**
 	 * 2016-09-07
@@ -142,7 +152,7 @@ final class Payload {
 	 */
 	private static function oqi_price($i, $withTax = false, $withDiscount = false) {
 		$r = floatval($withTax ? $i->getPriceInclTax() : $i->getPrice()) ?: (
-			$i->getParentItem() ? self::oqi_price($i->getParentItem(), $withTax) : .0
+		$i->getParentItem() ? self::oqi_price($i->getParentItem(), $withTax) : .0
 		); /** @var float $r */
 		/**
 		 * 2017-09-30
@@ -201,8 +211,8 @@ final class Payload {
 		if ($type) {
 			$r = $h
 				->init($p, $type, ['type' => $type] + $attrs + $vc->getViewConfig()->getMediaAttributes(
-					'Magento_Catalog', ImageH::MEDIA_TYPE_CONFIG_NODE, $type
-				))
+						'Magento_Catalog', ImageH::MEDIA_TYPE_CONFIG_NODE, $type
+					))
 				->getUrl()
 			;
 		}
@@ -243,11 +253,14 @@ final class Payload {
 	 * @param _DO|mixed[] $v
 	 * @return mixed
 	 */
-	private static function remove_objects($v) {return self::clean(array_filter(
-		is_array($v) ? $v : $v->getData(), function($v) {return
-			is_object($v) ? false : (!is_array($v) ? true : self::remove_objects($v))
-		;}
-	));}
+	private static function remove_objects($v)
+	{
+		return self::clean(array_filter(
+			is_array($v) ? $v : $v->getData(), function ($v) {
+			return is_object($v) ? false : (!is_array($v) ? true : self::remove_objects($v));
+		}
+		));
+	}
 
 	/**
 	 * 2017-09-30
@@ -261,5 +274,5 @@ final class Payload {
 	 */
 	private static function tax_rate($withTax, $withoutTax) {return !$withoutTax ? 0 :
 		100 * ($withTax - $withoutTax) / $withoutTax
-	;}
+		;}
 }
