@@ -13,11 +13,11 @@ use Stock2Shop\OrderExport\Payload;
 // 2018-08-11 Dmitry Fedyuk https://www.upwork.com/fl/mage2pro
 final class OrderSaveAfter implements ObserverInterface {
 
-	private static $encoding_error_msg;
-	private static $curl_error_msg;
-	private static $exception_msg;
+	private $encoding_error_msg;
+	private $curl_error_msg;
+	private $exception_msg;
 
-	protected static $logger;
+	private $logger;
 
 	/**
 	 * @param \Psr\Log\LoggerInterface $logger
@@ -25,7 +25,7 @@ final class OrderSaveAfter implements ObserverInterface {
 	public function __construct(
 		\Psr\Log\LoggerInterface $logger
 	) {
-		self::$logger = $logger;
+		$this->logger = $logger;
 	}
 
 	/**
@@ -36,9 +36,9 @@ final class OrderSaveAfter implements ObserverInterface {
 	 */
 	function execute(Observer $ob) {
 		static $in; /** @var bool $in */
-		self::$curl_error_msg = null;
-		self::$encoding_error_msg = null;
-		self::$exception_msg = null;
+		$this->curl_error_msg = null;
+		$this->encoding_error_msg = null;
+		$this->exception_msg = null;
 
 		if (!$in) {
 			$in = true;
@@ -51,15 +51,15 @@ final class OrderSaveAfter implements ObserverInterface {
 					list($state, $status) = [$o->getState(), $o->getStatus()];
 					try {
 						$payload = Payload::get($o);
-						$encoded_str = self::encode($payload);
+						$encoded_str = $this->encode($payload);
 						$order_id = $o->getIncrementId();
-						$payload_str = !empty(self::$encoding_error_msg)
+						$payload_str = !empty($this->encoding_error_msg)
 							? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website to see the details."}'
 							: $encoded_str;
-						$res = self::post($payload_str, $o->getStore());
+						$res = $this->post($payload_str, $o->getStore());
 					} catch (\Exception $e) {
-						self::$exception_msg = 'Stock2Shop Webhook exception: ' . $e->getMessage();
-						self::$logger->error(self::$exception_msg);
+						$this->exception_msg = 'Stock2Shop Webhook exception: ' . $e->getMessage();
+						$this->logger->error($this->exception_msg);
 					}
 
 					// Set errors as webhook response, if any
@@ -91,14 +91,14 @@ final class OrderSaveAfter implements ObserverInterface {
 	 * @param array $payload
 	 * @return false|string
 	 */
-	private static function encode(array $payload)
+	private function encode(array $payload)
 	{
 		$response = json_encode($payload, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
 
 		// Log errors
 		if (json_last_error() !== JSON_ERROR_NONE) {
-			self::$encoding_error_msg = 'Stock2Shop Webhook JSON encoding error: ' . json_last_error_msg();
-			self::$logger->error(self::$encoding_error_msg);
+			$this->encoding_error_msg = 'Stock2Shop Webhook JSON encoding error: ' . json_last_error_msg();
+			$this->logger->error($this->encoding_error_msg);
 		}
 		return $response;
 	}
@@ -109,7 +109,7 @@ final class OrderSaveAfter implements ObserverInterface {
 	 * @param Store $s
 	 * @return string
 	 */
-	private static function post(string $payload, Store $s) {
+	private function post(string $payload, Store $s) {
 		$om = OM::getInstance(); /** @var OM $om */
 		$cfg = $om->get(Config::class); /** @var Config $cfg */
 		$url = $cfg->getValue('stock2shop/order_export/url', SS::SCOPE_STORE, $s); /** @var string $url */
@@ -129,8 +129,8 @@ final class OrderSaveAfter implements ObserverInterface {
 
 		// Log errors
 		if (curl_errno($ch)) {
-			self::$curl_error_msg = 'Stock2Shop Webhook curl error: ' . curl_error($ch);
-			self::$logger->error(self::$curl_error_msg);
+			$this->curl_error_msg = 'Stock2Shop Webhook curl error: ' . curl_error($ch);
+			$this->logger->error($this->curl_error_msg);
 		}
 
 		curl_close($ch);
@@ -138,17 +138,17 @@ final class OrderSaveAfter implements ObserverInterface {
 		return $result;
 	}
 
-	private static function getErrors()
+	private function getErrors()
 	{
 		$errors = [];
-		if (!empty(self::$encoding_error_msg)) {
-			$errors[] = self::$encoding_error_msg;
+		if (!empty($this->encoding_error_msg)) {
+			$errors[] = $this->encoding_error_msg;
 		}
-		if (!empty(self::$curl_error_msg)) {
-			$errors[] = self::$curl_error_msg;
+		if (!empty($this->curl_error_msg)) {
+			$errors[] = $this->curl_error_msg;
 		}
-		if (!empty(self::$exception_msg)) {
-			$errors[] = self::$exception_msg;
+		if (!empty($this->exception_msg)) {
+			$errors[] = $this->exception_msg;
 		}
 		return $errors;
 	}
