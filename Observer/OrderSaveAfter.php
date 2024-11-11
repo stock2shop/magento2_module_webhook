@@ -1,5 +1,6 @@
 <?php
 namespace Stock2Shop\OrderExport\Observer;
+use Stock2Shop\OrderExport\Observer\OrderLineError as OLE;
 use Magento\Framework\App\Config;
 use Magento\Framework\App\ObjectManager as OM;
 use Magento\Framework\Event\Observer;
@@ -46,6 +47,7 @@ final class OrderSaveAfter implements ObserverInterface {
 				$o = $ob['order']; /** @var O $o */
 				$om = OM::getInstance(); /** @var OM $om */
 				$cfg = $om->get(Config::class); /** @var Config $cfg */
+				$comment = [];
 				if ($cfg->getValue('stock2shop/order_export/enable', SS::SCOPE_STORE, $o->getStore())) {
 					/** @var string $state */ /** @var string $status */
 					list($state, $status) = [$o->getState(), $o->getStatus()];
@@ -57,6 +59,8 @@ final class OrderSaveAfter implements ObserverInterface {
 							? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website to see the details."}'
 							: $encoded_str;
 						$res = $this->post($payload_str, $o->getStore());
+					} catch (OLE $e) {
+						$comment[] = 'Stock2Shop Webhook exception: ' . $e->getMessage();
 					} catch (\Exception $e) {
 						$this->exception_msg = 'Stock2Shop Webhook exception: ' . $e->getMessage();
 						$this->logger->error($this->exception_msg);
@@ -66,12 +70,10 @@ final class OrderSaveAfter implements ObserverInterface {
 					$errors = $this->getErrors();
 					$res = !empty($errors) ? implode(', ', $errors) : $res;
 
-					$comment = [
-						"The Stock2Shop's webhook is notified."
-						,"The order's status: «<b>{$status}</b>»."
-						,"The order's state: «<b>{$state}</b>»."
-						,sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000))
-					];
+					$comment[] = "The Stock2Shop's webhook is notified.";
+					$comment[] = "The order's status: «<b>{$status}</b>».";
+					$comment[] = "The order's state: «<b>{$state}</b>».";
+					$comment[] = sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000));
 					if (!empty($errors)) {
 						$comment[] = sprintf("The serialized payload: %s", htmlspecialchars(serialize($payload)));
 					}
