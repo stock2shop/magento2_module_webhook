@@ -68,13 +68,17 @@ final class OrderSaveAfter implements ObserverInterface {
 
 					// Set errors as webhook response, if any
 					$errors = $this->getErrors();
-					$res = !empty($errors) ? implode(', ', $errors) : $res;
 
 					$comment[] = "The Stock2Shop's webhook is notified.";
 					$comment[] = "The order's status: «<b>{$status}</b>».";
 					$comment[] = "The order's state: «<b>{$state}</b>».";
-					$comment[] = sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000));
-					if (!empty($errors)) {
+
+					if (!empty($errors) || !empty($res)) {
+						$res       = !empty($errors) ? implode(', ', $errors) : $res;
+						$comment[] = sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000));
+					}
+
+					if (!empty($errors) && !empty($payload)) {
 						$comment[] = sprintf("The serialized payload: %s", htmlspecialchars(serialize($payload)));
 					}
 					$h = $o->addStatusHistoryComment(__(
