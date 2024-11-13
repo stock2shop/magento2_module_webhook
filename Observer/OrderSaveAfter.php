@@ -78,7 +78,7 @@ final class OrderSaveAfter implements ObserverInterface {
 						$comment[] = sprintf("The webhook's response: «<b>%s</b>».", mb_substr($res, 0, 25000));
 					}
 
-					if (!empty($errors) && !empty($payload)) {
+					if (!empty($payload)) {
 						$comment[] = sprintf("The serialized payload: %s", htmlspecialchars(serialize($payload)));
 					}
 					$h = $o->addStatusHistoryComment(__(
