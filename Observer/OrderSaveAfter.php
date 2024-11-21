@@ -1,6 +1,6 @@
 <?php
 namespace Stock2Shop\OrderExport\Observer;
-use Stock2Shop\OrderExport\Observer\OrderLineError as OLE;
+use Stock2Shop\OrderExport\Observer\OrderLineError;
 use Magento\Framework\App\Config;
 use Magento\Framework\App\ObjectManager as OM;
 use Magento\Framework\Event\Observer;
@@ -59,7 +59,7 @@ final class OrderSaveAfter implements ObserverInterface {
 							? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website to see the details."}'
 							: $encoded_str;
 						$res = $this->post($payload_str, $o->getStore());
-					} catch (OLE $e) {
+					} catch (OrderLineError $e) {
 						$comment[] = 'Stock2Shop Webhook exception: ' . $e->getMessage();
 					} catch (\Exception $e) {
 						$this->exception_msg = 'Stock2Shop Webhook exception: ' . $e->getMessage();

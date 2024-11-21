@@ -1,6 +1,6 @@
 <?php
 namespace Stock2Shop\OrderExport;
-use Stock2Shop\OrderExport\Observer\OrderLineError as OLE;
+use Stock2Shop\OrderExport\Observer\OrderLineError;
 use Magento\Catalog\Helper\Image as ImageH;
 use Magento\Catalog\Model\Product as P;
 use Magento\Catalog\Model\Product\Media\Config as MC;
@@ -37,7 +37,7 @@ final class Payload {
 	 * 2018-08-11
 	 * @used-by get()
 	 * @return array(string => mixed)
-	 * @throws OLE
+	 * @throws OrderLineError
 	 */
 	private function items()
 	{
@@ -45,7 +45,7 @@ final class Payload {
 		{
 			$pid = $i->getProductId();
 			if (is_null($i->getProduct())) {
-				throw new OLE("«Product ID '$pid' not found»");
+				throw new OrderLineError("«Product ID '$pid' not found»");
 			}
 			return [
 				// 2018-09-05
