@@ -2,7 +2,6 @@
 namespace Stock2Shop\OrderExport;
 use Magento\Catalog\Helper\Image as ImageH;
 use Magento\Catalog\Model\Product as P;
-use Magento\Catalog\Model\Product\Media\Config as MC;
 use Magento\Customer\Model\CustomerRegistry;
 use Magento\Framework\App\ObjectManager as OM;
 use Magento\Framework\App\Request\Http as RequestHttp;
