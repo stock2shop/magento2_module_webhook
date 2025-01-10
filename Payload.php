@@ -199,14 +199,26 @@ final class Payload {
 	 * @param OI $i
 	 * @return OI
 	 */
-	private static function oqi_top($i) {return $i->getParentItem() ?: $i;}
+	private static function oqi_top($i)
+	{
+		return $i->getParentItem() ?: $i;
+	}
 
 	/**
 	 * 2017-02-01
 	 * @param OI $i
-	 * @return string
+	 * @return string|null
 	 */
-	private static function oqi_url($i) {return self::oqi_top($i)->getProduct()->getProductUrl();}
+	private static function oqi_url($i)
+	{
+		try {
+			$parent = self::oqi_top($i);
+			$product = $parent->getProduct();
+			return $product->getProductUrl();
+		} catch (\Throwable $e) {
+			return null;
+		}
+	}
 
 	/**
 	 * 2016-04-23
