@@ -57,7 +57,7 @@ final class OrderSaveAfter implements ObserverInterface {
 							? '{"error": "Magento webhook failed to encode order, please look at order ' . $order_id . ' on website to see the details."}'
 							: $encoded_str;
 						$res = $this->post($payload_str, $o->getStore());
-					} catch (\Exception $e) {
+					} catch (\Throwable $e) {
 						$this->exception_msg = 'Stock2Shop Webhook exception: ' . $e->getMessage();
 						$this->logger->error($this->exception_msg);
 					}

@@ -2,7 +2,6 @@
 namespace Stock2Shop\OrderExport;
 use Magento\Catalog\Helper\Image as ImageH;
 use Magento\Catalog\Model\Product as P;
-use Magento\Catalog\Model\Product\Media\Config as MC;
 use Magento\Customer\Model\CustomerRegistry;
 use Magento\Framework\App\ObjectManager as OM;
 use Magento\Framework\App\Request\Http as RequestHttp;
@@ -37,23 +36,40 @@ final class Payload {
 	 * @used-by get()
 	 * @return array(string => mixed)
 	 */
-	private function items() {return self::oqi_leafs($this->_o, function(OI $i) {return [
-		// 2018-09-05
-		// «Add product IDs to line items»
-		// https://github.com/stock2shop/magento2_module_webhook/issues/5
-		'id' => $i->getProductId()
-		,'image' => self::product_image_url($i->getProduct())
-		,'name' => $i->getName()
-		,'price' => self::oqi_price($i)
-		,'price_with_discount' => self::oqi_price($i, false, true)
-		,'price_with_discount_and_tax' => self::oqi_price($i, true, true)
-		,'price_with_tax' => self::oqi_price($i, true)
-		,'qty' => intval($i->getQtyOrdered())
-		// 2018-09-05 «Add SKUs to line items»: https://github.com/stock2shop/magento2_module_webhook/issues/2
-		,'sku' => $i->getSku()
-		,'tax_rate' => self::oqi_tax_rate($i)
-		,'url' => self::oqi_url($i)
-	];});}
+	private function items() {
+		return self::oqi_leafs(
+			$this->_o,
+			function(OI $i) {
+
+				// Ensure that Missing products don't break anything
+				// just because we want an image
+				try {
+					$product = $i->getProduct();
+					$productImage = self::product_image_url($product);
+				} catch (\Throwable $e) {
+					$productImage = null;
+				}				
+			
+				return [
+					// 2018-09-05
+					// «Add product IDs to line items»
+					// https://github.com/stock2shop/magento2_module_webhook/issues/5
+					'id' => $i->getProductId()
+					,'image' => $productImage
+					,'name' => $i->getName()
+					,'price' => self::oqi_price($i)
+					,'price_with_discount' => self::oqi_price($i, false, true)
+					,'price_with_discount_and_tax' => self::oqi_price($i, true, true)
+					,'price_with_tax' => self::oqi_price($i, true)
+					,'qty' => intval($i->getQtyOrdered())
+					// 2018-09-05 «Add SKUs to line items»: https://github.com/stock2shop/magento2_module_webhook/issues/2
+					,'sku' => $i->getSku()
+					,'tax_rate' => self::oqi_tax_rate($i)
+					,'url' => self::oqi_url($i)
+				];
+			}
+		);
+	}
 
 	/**
 	 * 2018-08-11
@@ -183,14 +199,26 @@ final class Payload {
 	 * @param OI $i
 	 * @return OI
 	 */
-	private static function oqi_top($i) {return $i->getParentItem() ?: $i;}
+	private static function oqi_top($i)
+	{
+		return $i->getParentItem() ?: $i;
+	}
 
 	/**
 	 * 2017-02-01
 	 * @param OI $i
-	 * @return string
+	 * @return string|null
 	 */
-	private static function oqi_url($i) {return self::oqi_top($i)->getProduct()->getProductUrl();}
+	private static function oqi_url($i)
+	{
+		try {
+			$parent = self::oqi_top($i);
+			$product = $parent->getProduct();
+			return $product->getProductUrl();
+		} catch (\Throwable $e) {
+			return null;
+		}
+	}
 
 	/**
 	 * 2016-04-23
